@@ -1,9 +1,0 @@
-{
-  "buildCommand": "cd frontend/fraud-dashboard && CI=false npm run build",
-  "outputDirectory": "frontend/fraud-dashboard/build",
-  "installCommand": "cd frontend/fraud-dashboard && npm install",
-  "framework": null,
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
-}
