@@ -116,8 +116,9 @@ const AuthPage = ({ onAuthSuccess }) => {
           background: colors.panel,
           border: `1px solid ${colors.border}`,
           borderRadius: "16px",
-          padding: "40px 32px",
-          boxShadow: `0 20px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)`
+          padding: "32px 24px",
+          boxShadow: `0 20px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05)`,
+          boxSizing: "border-box",
         }}
       >
         <div style={{ textAlign: "center", marginBottom: "32px" }}>

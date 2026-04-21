@@ -8,6 +8,20 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "./firebase";
 import AuthPage from "./Auth";
 
+// Detect API base URL — use localhost in dev, disable in production
+const API_BASE = window.location.hostname === "localhost" ? "http://localhost:8000" : null;
+
+// Hook for responsive breakpoints
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+  return isMobile;
+};
+
 // ========================================
 // DESIGN TOKENS
 // ========================================
@@ -288,6 +302,8 @@ const MicWaveform = () => (
 // MAIN APP
 // ========================================
 export default function App() {
+  const isMobile = useIsMobile();
+
   // === AUTHENTICATION STATE ===
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -332,10 +348,14 @@ export default function App() {
   const baseTextRef = useRef("");       // text in textarea when recording started
   const interimDisplayRef = useRef(""); // current interim text being shown
 
-  // Check browser support on mount
+  // Check browser support on mount — works on mobile Chrome & Safari
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
+      setMicSupported(false);
+    }
+    // On mobile, check HTTPS requirement (mic needs secure context)
+    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
       setMicSupported(false);
     }
   }, []);
@@ -352,7 +372,13 @@ export default function App() {
     setMicError("");
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      setMicError("Speech recognition is not supported in this browser. Please use Chrome or Edge.");
+      setMicError("Speech recognition is not supported in this browser. Please use Chrome.");
+      return;
+    }
+
+    // Check secure context for mobile
+    if (!window.isSecureContext) {
+      setMicError("Microphone requires HTTPS. Please use the deployed HTTPS URL.");
       return;
     }
 
@@ -364,10 +390,11 @@ export default function App() {
 
         const recognition = new SpeechRecognition();
         // Auto-detect: en-IN handles English + Romanized Hindi (Hinglish) natively
-        // This is the best single-language setting for mixed Hindi-English input
         recognition.lang = "en-IN";
-        recognition.interimResults = true;  // KEY: enable interim results for real-time display
-        recognition.continuous = true;
+        // Mobile Safari doesn't support interimResults well — detect and adjust
+        const isMobileSafari = /iPhone|iPad/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent);
+        recognition.interimResults = !isMobileSafari;  // Disable interim on mobile Safari
+        recognition.continuous = !isMobileSafari; // Mobile Safari doesn't support continuous well
         recognition.maxAlternatives = 1;
 
         // Capture the text currently in the textarea as the "base"
@@ -461,11 +488,12 @@ export default function App() {
     };
   }, []);
 
-  // Fetch data on mount
+  // Fetch data on mount — only when API is available (local dev)
   useEffect(() => {
-    fetch("http://localhost:8000/summary").then((r) => r.json()).then(setTxnData).catch(() => {});
-    fetch("http://localhost:8000/alerts").then((r) => r.json()).then(setTxnAlerts).catch(() => {});
-    fetch("http://localhost:8000/spam/summary").then((r) => r.json()).then(setSpamSummary).catch(() => {});
+    if (!API_BASE) return;
+    fetch(`${API_BASE}/summary`).then((r) => r.json()).then(setTxnData).catch(() => {});
+    fetch(`${API_BASE}/alerts`).then((r) => r.json()).then(setTxnAlerts).catch(() => {});
+    fetch(`${API_BASE}/spam/summary`).then((r) => r.json()).then(setSpamSummary).catch(() => {});
   }, []);
 
   // Full investigation
@@ -473,7 +501,8 @@ export default function App() {
     if (!messageInput.trim()) return;
     setIsInvestigating(true);
     try {
-      const res = await fetch("http://localhost:8000/investigate", {
+      const baseUrl = API_BASE || "";
+      const res = await fetch(`${baseUrl}/investigate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: messageInput, phone_number: phoneNumber, name: callerName, email: emailInput }),
@@ -505,16 +534,16 @@ export default function App() {
     <div style={{ minHeight: "100vh", background: `linear-gradient(180deg, ${colors.bg} 0%, #0d1321 100%)`, color: colors.white, fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
 
       {/* HEADER */}
-      <header style={{ padding: "24px 40px", borderBottom: `1px solid ${colors.border}`, background: `linear-gradient(135deg, ${colors.bg}ee, ${colors.surface}cc)`, backdropFilter: "blur(20px)", position: "sticky", top: 0, zIndex: 100 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", maxWidth: "1400px", margin: "0 auto" }}>
+      <header style={{ padding: isMobile ? "16px 16px" : "24px 40px", borderBottom: `1px solid ${colors.border}`, background: `linear-gradient(135deg, ${colors.bg}ee, ${colors.surface}cc)`, backdropFilter: "blur(20px)", position: "sticky", top: 0, zIndex: 100 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: isMobile ? "flex-start" : "center", maxWidth: "1400px", margin: "0 auto", flexDirection: isMobile ? "column" : "row", gap: isMobile ? "12px" : "0" }}>
           <div>
-            <h1 style={{ fontSize: "26px", fontWeight: "800", margin: 0, background: `linear-gradient(135deg, ${colors.accent}, ${colors.cyan})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+            <h1 style={{ fontSize: isMobile ? "20px" : "26px", fontWeight: "800", margin: 0, background: `linear-gradient(135deg, ${colors.accent}, ${colors.cyan})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
               🛡️ FraudShield
             </h1>
-            <p style={{ fontSize: "13px", color: colors.muted, margin: "4px 0 0" }}>Real-time fraud detection & spam caller identification</p>
+            <p style={{ fontSize: isMobile ? "11px" : "13px", color: colors.muted, margin: "4px 0 0" }}>Real-time fraud detection & spam caller identification</p>
           </div>
-          <div style={{ display: "flex", gap: "24px", alignItems: "center", flexWrap: "wrap" }}>
-            <div style={{ display: "flex", gap: "8px" }}>
+          <div style={{ display: "flex", gap: isMobile ? "8px" : "24px", alignItems: "center", flexWrap: "wrap", width: isMobile ? "100%" : "auto" }}>
+            <div style={{ display: "flex", gap: isMobile ? "4px" : "8px", flexWrap: isMobile ? "wrap" : "nowrap" }}>
               <TabButton active={activeTab === "investigate"} onClick={() => setActiveTab("investigate")}>🔍 Investigate</TabButton>
               <TabButton active={activeTab === "dashboard"} onClick={() => setActiveTab("dashboard")}>📊 Dashboard</TabButton>
               <TabButton active={activeTab === "alerts"} onClick={() => setActiveTab("alerts")}>🚨 Alerts</TabButton>
@@ -549,7 +578,7 @@ export default function App() {
       </header>
 
       {/* MAIN */}
-      <main style={{ maxWidth: "1400px", margin: "0 auto", padding: "32px 40px" }}>
+      <main style={{ maxWidth: "1400px", margin: "0 auto", padding: isMobile ? "16px" : "32px 40px" }}>
         <AnimatePresence mode="wait">
 
           {/* ==================== INVESTIGATE TAB ==================== */}
@@ -563,7 +592,7 @@ export default function App() {
                   Enter the caller details and message. The system will detect spam, extract account numbers, and look up receiver transaction history.
                 </p>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: "16px" }}>
                   <InputField label="Phone Number" icon="📞" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="e.g. 9876543210" />
                   <InputField label="Caller Name" icon="👤" value={callerName} onChange={(e) => setCallerName(e.target.value)} placeholder="e.g. Unknown Caller" />
                   <InputField label="Email Address" icon="📧" value={emailInput} onChange={(e) => setEmailInput(e.target.value)} placeholder="e.g. scammer@fake.com" />
@@ -716,7 +745,7 @@ export default function App() {
               {!investigateResult && (
                 <Card>
                   <SectionTitle icon="💡">Try Sample Scenarios</SectionTitle>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "12px" }}>
                     {[
                       { phone: "9876543210", name: "CBI Officer", msg: "This is CBI officer. You are under digital arrest for money laundering. Transfer ₹2,00,000 to ACC973758 immediately." },
                       { phone: "8765432109", name: "", msg: "Send me your bank account password and OTP to verify your account number 12345678901234." },
@@ -830,7 +859,7 @@ export default function App() {
                     </Card>
 
                     {/* CALLER + SPAM + ENTITIES — 3 columns */}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "20px", marginBottom: "24px" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: "20px", marginBottom: "24px" }}>
 
                       {/* Caller Info */}
                       <Card>
@@ -945,7 +974,7 @@ export default function App() {
                         {acc.found && acc.risk_profile && (
                           <>
                             {/* Stats Grid */}
-                            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "12px", marginBottom: "20px" }}>
+                            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(5, 1fr)", gap: "12px", marginBottom: "20px" }}>
                               <MetricBox label="Total Txns" value={acc.risk_profile.total_transactions} color={colors.white} />
                               <MetricBox label="Fraud Txns" value={acc.risk_profile.fraud_count} color={acc.risk_profile.fraud_count > 0 ? colors.red : colors.green} />
                               <MetricBox label="Fraud %" value={`${acc.risk_profile.fraud_percentage}%`} color={acc.risk_profile.fraud_percentage > 10 ? colors.red : colors.green} />
@@ -954,7 +983,7 @@ export default function App() {
                             </div>
 
                             {/* Profile Details */}
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", marginBottom: "20px" }}>
+                            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: "16px", marginBottom: "20px" }}>
                               <div style={{ background: colors.bg, padding: "14px", borderRadius: "10px" }}>
                                 <div style={{ fontSize: "11px", color: colors.muted, textTransform: "uppercase", marginBottom: "8px" }}>📍 Top Locations</div>
                                 {Object.entries(acc.risk_profile.locations || {}).map(([loc, cnt], i) => (
@@ -983,7 +1012,7 @@ export default function App() {
 
                             {/* Connected Accounts */}
                             {(Object.keys(acc.connected_accounts?.sent_to || {}).length > 0 || Object.keys(acc.connected_accounts?.received_from || {}).length > 0) && (
-                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "20px" }}>
+                              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "16px", marginBottom: "20px" }}>
                                 <div style={{ background: colors.bg, padding: "14px", borderRadius: "10px" }}>
                                   <div style={{ fontSize: "11px", color: colors.muted, textTransform: "uppercase", marginBottom: "8px" }}>📤 Sent To (Top Receivers)</div>
                                   {Object.entries(acc.connected_accounts?.sent_to || {}).slice(0, 5).map(([a, c], i) => (
@@ -1063,7 +1092,7 @@ export default function App() {
                 )}
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", marginBottom: "32px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "24px", marginBottom: "32px" }}>
                 <Card>
                   <SectionTitle icon="📊">Transaction Fraud Overview</SectionTitle>
                   <ResponsiveContainer width="100%" height={280}>
@@ -1091,7 +1120,7 @@ export default function App() {
                 </Card>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "24px" }}>
                 <Card>
                   <div onClick={() => setShowNetwork(!showNetwork)} style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <SectionTitle icon="🌐">Fraud Network Graph</SectionTitle>
@@ -1099,7 +1128,15 @@ export default function App() {
                   </div>
                   <AnimatePresence>{showNetwork && (
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ overflow: "hidden" }}>
-                      <img src="http://localhost:8000/network" alt="Fraud Network" style={{ width: "100%", maxHeight: "400px", objectFit: "contain", borderRadius: "12px", marginTop: "12px" }} />
+                      {API_BASE ? (
+                        <img src={`${API_BASE}/network`} alt="Fraud Network" style={{ width: "100%", maxHeight: "400px", objectFit: "contain", borderRadius: "12px", marginTop: "12px" }} />
+                      ) : (
+                        <div style={{ padding: "40px 20px", textAlign: "center", color: colors.muted, background: colors.bg, borderRadius: "12px", marginTop: "12px" }}>
+                          <div style={{ fontSize: "40px", marginBottom: "12px" }}>🌐</div>
+                          <p style={{ margin: 0, fontSize: "14px" }}>Fraud Network Graph is available when the backend server is running locally.</p>
+                          <p style={{ margin: "8px 0 0", fontSize: "12px", color: colors.textSecondary }}>Run <code style={{ background: colors.surfaceLight, padding: "2px 8px", borderRadius: "4px" }}>python app.py</code> to enable.</p>
+                        </div>
+                      )}
                     </motion.div>
                   )}</AnimatePresence>
                 </Card>
@@ -1110,7 +1147,15 @@ export default function App() {
                   </div>
                   <AnimatePresence>{showShap && (
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ overflow: "hidden" }}>
-                      <img src="http://localhost:8000/shap_summary" alt="SHAP" style={{ width: "100%", maxHeight: "400px", objectFit: "contain", borderRadius: "12px", marginTop: "12px" }} />
+                      {API_BASE ? (
+                        <img src={`${API_BASE}/shap_summary`} alt="SHAP" style={{ width: "100%", maxHeight: "400px", objectFit: "contain", borderRadius: "12px", marginTop: "12px" }} />
+                      ) : (
+                        <div style={{ padding: "40px 20px", textAlign: "center", color: colors.muted, background: colors.bg, borderRadius: "12px", marginTop: "12px" }}>
+                          <div style={{ fontSize: "40px", marginBottom: "12px" }}>📈</div>
+                          <p style={{ margin: 0, fontSize: "14px" }}>SHAP Explainability charts are available when the backend server is running locally.</p>
+                          <p style={{ margin: "8px 0 0", fontSize: "12px", color: colors.textSecondary }}>Run <code style={{ background: colors.surfaceLight, padding: "2px 8px", borderRadius: "4px" }}>python app.py</code> to enable.</p>
+                        </div>
+                      )}
                     </motion.div>
                   )}</AnimatePresence>
                 </Card>
