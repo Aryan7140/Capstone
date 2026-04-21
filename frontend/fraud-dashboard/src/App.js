@@ -362,11 +362,14 @@ export default function App() {
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
-      recognitionRef.current.stop();
+      try { recognitionRef.current.stop(); } catch (_) {}
       recognitionRef.current = null;
     }
     setIsListening(false);
   }, []);
+
+  // Ref to accumulate all finalized text across recognition restarts
+  const finalizedTextRef = useRef("");
 
   const startListening = useCallback(() => {
     setMicError("");
@@ -376,94 +379,97 @@ export default function App() {
       return;
     }
 
-    // Check secure context for mobile
-    if (!window.isSecureContext) {
-      setMicError("Microphone requires HTTPS. Please use the deployed HTTPS URL.");
-      return;
-    }
+    // Capture the text currently in the textarea as the "base"
+    baseTextRef.current = messageInput;
+    finalizedTextRef.current = "";
+    interimDisplayRef.current = "";
 
-    // Request mic permission explicitly
-    navigator.mediaDevices.getUserMedia({ audio: true })
-      .then((stream) => {
-        // Permission granted — stop the stream tracks (we only needed permission)
-        stream.getTracks().forEach(track => track.stop());
+    const createRecognition = () => {
+      const recognition = new SpeechRecognition();
+      recognition.lang = "en-IN";
+      recognition.interimResults = true;
+      recognition.continuous = false;  // Use single-shot for reliability on all platforms
+      recognition.maxAlternatives = 1;
 
-        const recognition = new SpeechRecognition();
-        // Auto-detect: en-IN handles English + Romanized Hindi (Hinglish) natively
-        recognition.lang = "en-IN";
-        // Mobile Safari doesn't support interimResults well — detect and adjust
-        const isMobileSafari = /iPhone|iPad/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent);
-        recognition.interimResults = !isMobileSafari;  // Disable interim on mobile Safari
-        recognition.continuous = !isMobileSafari; // Mobile Safari doesn't support continuous well
-        recognition.maxAlternatives = 1;
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
 
-        // Capture the text currently in the textarea as the "base"
-        baseTextRef.current = messageInput;
-        interimDisplayRef.current = "";
+      recognition.onresult = (event) => {
+        let sessionFinal = "";
+        let currentInterim = "";
 
-        recognition.onstart = () => {
-          setIsListening(true);
-        };
-
-        recognition.onresult = (event) => {
-          let allFinalizedText = "";
-          let currentInterim = "";
-
-          // Iterate ALL results (not just from resultIndex) to capture
-          // the full finalized text from this recording session
-          for (let i = 0; i < event.results.length; i++) {
-            const transcript = event.results[i][0].transcript;
-            if (event.results[i].isFinal) {
-              allFinalizedText += transcript + " ";
-            } else {
-              currentInterim += transcript;
-            }
-          }
-
-          interimDisplayRef.current = currentInterim;
-
-          // Real-time update: show base + finalized + interim in textarea
-          const base = baseTextRef.current;
-          const spacer = base && !base.endsWith(" ") && !base.endsWith("\n") ? " " : "";
-          const fullText = base + spacer + allFinalizedText + currentInterim;
-          setMessageInput(fullText);
-        };
-
-        recognition.onerror = (event) => {
-          if (event.error === "not-allowed") {
-            setMicError("Microphone access denied. Please allow mic permission in your browser settings.");
-          } else if (event.error === "no-speech") {
-            setMicError("No speech detected. Please try again.");
-          } else if (event.error === "network") {
-            setMicError("Network error during speech recognition. Check your internet connection.");
+        for (let i = 0; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            sessionFinal += transcript + " ";
           } else {
-            setMicError(`Speech recognition error: ${event.error}`);
+            currentInterim += transcript;
           }
-          setIsListening(false);
-          recognitionRef.current = null;
-        };
-
-        recognition.onend = () => {
-          // Clean up: keep only base + finalized text (no dangling interim)
-          setMessageInput(prev => {
-            // Remove any trailing interim by reconstructing from what was finalized
-            // The last onresult already set the text, just trim any trailing whitespace
-            return prev.trim();
-          });
-          setIsListening(false);
-          recognitionRef.current = null;
-        };
-
-        recognitionRef.current = recognition;
-        recognition.start();
-      })
-      .catch((err) => {
-        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-          setMicError("Microphone access denied. Please allow mic permission in your browser settings.");
-        } else {
-          setMicError(`Could not access microphone: ${err.message}`);
         }
-      });
+
+        // Append newly finalized text to our accumulator
+        if (sessionFinal) {
+          finalizedTextRef.current += sessionFinal;
+        }
+        interimDisplayRef.current = currentInterim;
+
+        // Display: base + all finalized so far + current interim
+        const base = baseTextRef.current;
+        const spacer = base && !base.endsWith(" ") && !base.endsWith("\n") ? " " : "";
+        const fullText = base + spacer + finalizedTextRef.current + currentInterim;
+        setMessageInput(fullText);
+      };
+
+      recognition.onerror = (event) => {
+        // Silently ignore transient errors that don't mean "broken"
+        if (event.error === "no-speech" || event.error === "aborted") {
+          // These are normal — just means silence was detected or session ended
+          return;
+        }
+        if (event.error === "not-allowed") {
+          setMicError("Microphone access denied. Please allow mic permission in your browser settings.");
+        } else if (event.error === "network") {
+          setMicError("Network error. Check your internet connection and try again.");
+        } else {
+          setMicError(`Mic error: ${event.error}. Try again.`);
+        }
+        setIsListening(false);
+        recognitionRef.current = null;
+      };
+
+      recognition.onend = () => {
+        // In single-shot mode, recognition ends after each utterance.
+        // Auto-restart if user hasn't pressed stop (isListening is still true via ref check)
+        if (recognitionRef.current === recognition) {
+          // Still supposed to be listening — restart for next utterance
+          try {
+            const newRec = createRecognition();
+            recognitionRef.current = newRec;
+            newRec.start();
+          } catch (_) {
+            // If restart fails, clean up gracefully
+            setMessageInput(prev => prev.trim());
+            setIsListening(false);
+            recognitionRef.current = null;
+          }
+        } else {
+          // User stopped — clean up
+          setMessageInput(prev => prev.trim());
+          setIsListening(false);
+        }
+      };
+
+      return recognition;
+    };
+
+    try {
+      const recognition = createRecognition();
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      setMicError(`Could not start microphone: ${err.message}`);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
