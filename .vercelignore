@@ -1,0 +1,12 @@
+# Ignore Python backend & data files — Vercel only needs the React build
+venv/
+__pycache__/
+*.pkl
+*.csv
+*.xlsx
+*.xls
+*.png
+fraud_network.png
+shap_*.png
+seed_firebase.py
+test_firebase.py

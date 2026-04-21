@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+venv/
+*.egg-info/
+
+# Large data files (GitHub has 100MB limit)
+*.pkl
+*.csv
+*.xlsx
+*.xls
+fraud_network.png
+
+# Environment
+.env
+.env.local
+
+# Node
+node_modules/
+frontend/fraud-dashboard/build/
+frontend/fraud-dashboard/.env
+
+# OS
+.DS_Store
+~$*
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
