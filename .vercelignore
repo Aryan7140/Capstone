@@ -5,7 +5,7 @@ __pycache__/
 *.csv
 *.xlsx
 *.xls
-*.png
+# Only ignore specific root-level PNGs (NOT frontend logos)
 fraud_network.png
 shap_*.png
 seed_firebase.py
