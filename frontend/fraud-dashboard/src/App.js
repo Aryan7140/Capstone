@@ -10,6 +10,7 @@ import AuthPage from "./Auth";
 
 // Detect API base URL — use localhost in dev, disable in production
 const API_BASE = window.location.hostname === "localhost" ? "http://localhost:8000" : null;
+const INVESTIGATE_URL = "http://localhost:8000"; // Investigation always needs the Python backend
 
 // Hook for responsive breakpoints
 const useIsMobile = () => {
@@ -330,6 +331,7 @@ export default function App() {
   const [messageInput, setMessageInput] = useState("");
   const [investigateResult, setInvestigateResult] = useState(null);
   const [isInvestigating, setIsInvestigating] = useState(false);
+  const [investigateError, setInvestigateError] = useState("");
 
   // Spam-only state
   const [spamSummary, setSpamSummary] = useState(null);
@@ -506,17 +508,22 @@ export default function App() {
   const runInvestigation = async () => {
     if (!messageInput.trim()) return;
     setIsInvestigating(true);
+    setInvestigateError("");
+    setInvestigateResult(null);
     try {
-      const baseUrl = API_BASE || "";
-      const res = await fetch(`${baseUrl}/investigate`, {
+      const res = await fetch(`${INVESTIGATE_URL}/investigate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: messageInput, phone_number: phoneNumber, name: callerName, email: emailInput }),
       });
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
       const result = await res.json();
       setInvestigateResult(result);
     } catch (err) {
       console.error("Investigation failed:", err);
+      setInvestigateError(
+        "Could not connect to the investigation server. Make sure the Python backend is running: python app.py"
+      );
     }
     setIsInvestigating(false);
   };
@@ -737,15 +744,73 @@ export default function App() {
                   />
                 </div>
 
-                <div style={{ display: "flex", gap: "12px" }}>
-                  <button onClick={runInvestigation} disabled={isInvestigating || !messageInput.trim()} style={{ padding: "14px 32px", background: isInvestigating ? colors.muted : `linear-gradient(135deg, ${colors.accent}, ${colors.purple})`, color: colors.white, border: "none", borderRadius: "12px", cursor: isInvestigating ? "wait" : "pointer", fontSize: "15px", fontWeight: "700" }}>
+                <div style={{ display: "flex", gap: "12px", flexWrap: isMobile ? "wrap" : "nowrap" }}>
+                  <button onClick={runInvestigation} disabled={isInvestigating || !messageInput.trim()} style={{ padding: "14px 32px", background: isInvestigating ? colors.muted : `linear-gradient(135deg, ${colors.accent}, ${colors.purple})`, color: colors.white, border: "none", borderRadius: "12px", cursor: isInvestigating ? "wait" : "pointer", fontSize: "15px", fontWeight: "700", width: isMobile ? "100%" : "auto" }}>
                     {isInvestigating ? "⏳ Investigating..." : "🔍 Investigate Now"}
                   </button>
-                  <button onClick={() => { setMessageInput(""); setPhoneNumber(""); setCallerName(""); setEmailInput(""); setInvestigateResult(null); }} style={{ padding: "14px 24px", background: "transparent", color: colors.muted, border: `1px solid ${colors.border}`, borderRadius: "12px", cursor: "pointer", fontSize: "14px" }}>
+                  <button onClick={() => { setMessageInput(""); setPhoneNumber(""); setCallerName(""); setEmailInput(""); setInvestigateResult(null); setInvestigateError(""); }} style={{ padding: "14px 24px", background: "transparent", color: colors.muted, border: `1px solid ${colors.border}`, borderRadius: "12px", cursor: "pointer", fontSize: "14px", width: isMobile ? "100%" : "auto" }}>
                     Clear All
                   </button>
                 </div>
               </Card>
+
+              {/* LOADING ANIMATION */}
+              {isInvestigating && (
+                <Card glow style={{ marginBottom: "24px", textAlign: "center", padding: "48px 24px" }}>
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+                    style={{ fontSize: "48px", marginBottom: "20px", display: "inline-block" }}
+                  >
+                    🔍
+                  </motion.div>
+                  <h3 style={{ color: colors.white, fontSize: "20px", fontWeight: "700", margin: "0 0 8px" }}>Analyzing Message...</h3>
+                  <p style={{ color: colors.muted, fontSize: "14px", margin: "0 0 24px", lineHeight: "1.5" }}>
+                    Running spam detection, entity extraction, and account investigation
+                  </p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxWidth: "300px", margin: "0 auto" }}>
+                    {["🤖 ML Spam Classification", "🔑 Keyword Analysis", "🏦 Account Lookup", "📊 Risk Scoring"].map((step, i) => (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.4 }}
+                        style={{
+                          display: "flex", alignItems: "center", gap: "10px",
+                          padding: "10px 16px", background: colors.bg, borderRadius: "10px",
+                          fontSize: "13px", color: colors.white,
+                        }}
+                      >
+                        <motion.div
+                          animate={{ scale: [1, 1.3, 1] }}
+                          transition={{ repeat: Infinity, duration: 1, delay: i * 0.4 }}
+                        >
+                          {step.split(" ")[0]}
+                        </motion.div>
+                        {step.split(" ").slice(1).join(" ")}
+                      </motion.div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
+              {/* ERROR MESSAGE */}
+              {investigateError && !isInvestigating && (
+                <Card style={{ marginBottom: "24px", borderLeft: `4px solid ${colors.red}` }}>
+                  <div style={{ display: "flex", gap: "16px", alignItems: "flex-start" }}>
+                    <div style={{ fontSize: "32px" }}>⚠️</div>
+                    <div>
+                      <h3 style={{ color: colors.red, fontSize: "16px", fontWeight: "700", margin: "0 0 8px" }}>Investigation Failed</h3>
+                      <p style={{ color: colors.muted, fontSize: "14px", margin: 0, lineHeight: "1.6" }}>
+                        {investigateError}
+                      </p>
+                      <div style={{ marginTop: "12px", padding: "12px", background: colors.bg, borderRadius: "8px", fontSize: "13px", fontFamily: "monospace", color: colors.cyan }}>
+                        $ cd "Capstone project" && python app.py
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              )}
 
               {/* SAMPLE SCENARIOS */}
               {!investigateResult && (
