@@ -418,8 +418,6 @@ export default function App() {
 
         recognition.onend = () => {
           // Clean up: keep only base + finalized text (no dangling interim)
-          const base = baseTextRef.current;
-          const spacer = base && !base.endsWith(" ") && !base.endsWith("\n") ? " " : "";
           setMessageInput(prev => {
             // Remove any trailing interim by reconstructing from what was finalized
             // The last onresult already set the text, just trim any trailing whitespace
