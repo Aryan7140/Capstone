@@ -500,11 +500,51 @@ export default function App() {
     };
   }, []);
 
-  // Fetch data on mount
+  // Fetch data on mount with retry (Render free tier cold starts take ~30-60s)
+  const [apiLoading, setApiLoading] = useState(true);
+  const [apiError, setApiError] = useState(false);
+
   useEffect(() => {
-    fetch(`${API_BASE}/summary`).then((r) => r.json()).then(setTxnData).catch(() => {});
-    fetch(`${API_BASE}/alerts`).then((r) => r.json()).then(setTxnAlerts).catch(() => {});
-    fetch(`${API_BASE}/spam/summary`).then((r) => r.json()).then(setSpamSummary).catch(() => {});
+    let cancelled = false;
+    const fetchWithRetry = async (url, retries = 3, delay = 5000) => {
+      for (let i = 0; i < retries; i++) {
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+          const res = await fetch(url, { signal: controller.signal });
+          clearTimeout(timeout);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return await res.json();
+        } catch (err) {
+          if (i < retries - 1) {
+            await new Promise(r => setTimeout(r, delay * (i + 1)));
+          }
+        }
+      }
+      return null;
+    };
+
+    const loadAll = async () => {
+      if (cancelled) return;
+      setApiLoading(true);
+      setApiError(false);
+      
+      const [summary, alerts, spam] = await Promise.all([
+        fetchWithRetry(`${API_BASE}/summary`),
+        fetchWithRetry(`${API_BASE}/alerts`),
+        fetchWithRetry(`${API_BASE}/spam/summary`),
+      ]);
+
+      if (cancelled) return;
+      if (summary) setTxnData(summary);
+      if (alerts) setTxnAlerts(alerts);
+      if (spam) setSpamSummary(spam);
+      setApiLoading(false);
+      if (!summary && !alerts && !spam) setApiError(true);
+    };
+
+    loadAll();
+    return () => { cancelled = true; };
   }, []);
 
   // Full investigation
@@ -1151,6 +1191,46 @@ export default function App() {
           {/* ==================== DASHBOARD TAB ==================== */}
           {activeTab === "dashboard" && (
             <motion.div key="dashboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+
+              {/* API Loading / Warming Up */}
+              {apiLoading && (
+                <Card glow style={{ marginBottom: "24px", textAlign: "center", padding: "48px 24px" }}>
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+                    style={{ fontSize: "48px", marginBottom: "16px", display: "inline-block" }}
+                  >
+                    ⚡
+                  </motion.div>
+                  <h3 style={{ color: colors.white, fontSize: "20px", fontWeight: "700", margin: "0 0 8px" }}>Warming Up Server...</h3>
+                  <p style={{ color: colors.muted, fontSize: "14px", margin: 0, lineHeight: "1.6" }}>
+                    The backend server is starting up (free tier takes ~30-60 seconds on first load).
+                    <br />Data will appear automatically once ready.
+                  </p>
+                  <motion.div
+                    style={{ width: "200px", height: "4px", background: colors.border, borderRadius: "2px", margin: "20px auto 0", overflow: "hidden" }}
+                  >
+                    <motion.div
+                      animate={{ x: ["-100%", "100%"] }}
+                      transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+                      style={{ width: "50%", height: "100%", background: `linear-gradient(90deg, ${colors.accent}, ${colors.purple})`, borderRadius: "2px" }}
+                    />
+                  </motion.div>
+                </Card>
+              )}
+
+              {/* API Error */}
+              {apiError && !apiLoading && (
+                <Card style={{ marginBottom: "24px", borderLeft: `4px solid ${colors.orange}`, textAlign: "center", padding: "32px 24px" }}>
+                  <div style={{ fontSize: "40px", marginBottom: "12px" }}>⚠️</div>
+                  <h3 style={{ color: colors.orange, fontSize: "18px", fontWeight: "700", margin: "0 0 8px" }}>Could Not Load Dashboard Data</h3>
+                  <p style={{ color: colors.muted, fontSize: "14px", margin: "0 0 16px" }}>The backend server may still be starting. Try refreshing.</p>
+                  <button onClick={() => window.location.reload()} style={{ padding: "12px 32px", background: `linear-gradient(135deg, ${colors.accent}, ${colors.purple})`, color: colors.white, border: "none", borderRadius: "10px", cursor: "pointer", fontSize: "14px", fontWeight: "600" }}>
+                    🔄 Retry
+                  </button>
+                </Card>
+              )}
+
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(3, 1fr)", gap: isMobile ? "10px" : "20px", marginBottom: "32px" }}>
                 {txnData.map((item, i) => (
                   <StatCard key={i} label={item.name} value={item.value}
@@ -1190,7 +1270,7 @@ export default function App() {
                         <Legend wrapperStyle={{ color: colors.muted, fontSize: isMobile ? "10px" : "12px" }} />
                       </PieChart>
                     </ResponsiveContainer>
-                  ) : <p style={{ color: colors.muted, textAlign: "center", padding: "80px 0" }}>Loading...</p>}
+                  ) : <p style={{ color: colors.muted, textAlign: "center", padding: "60px 0", fontSize: "14px" }}>{apiLoading ? "⏳ Waiting for server..." : "No data available"}</p>}
                 </Card>
               </div>
 
