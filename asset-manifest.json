@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/FraudShield/static/css/main.f2825458.css",
+    "main.js": "/FraudShield/static/js/main.1ca0c2c8.js",
+    "static/js/453.ec2fc27c.chunk.js": "/FraudShield/static/js/453.ec2fc27c.chunk.js",
+    "index.html": "/FraudShield/index.html",
+    "main.f2825458.css.map": "/FraudShield/static/css/main.f2825458.css.map",
+    "main.1ca0c2c8.js.map": "/FraudShield/static/js/main.1ca0c2c8.js.map",
+    "453.ec2fc27c.chunk.js.map": "/FraudShield/static/js/453.ec2fc27c.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.f2825458.css",
+    "static/js/main.1ca0c2c8.js"
+  ]
+}

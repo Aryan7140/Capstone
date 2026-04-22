@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+venv/
+*.egg-info/
+
+# Large unnecessary data files (keep only what backend needs)
+fraud_predictions.csv
+processed_features.csv
+labels.csv
+indian_cities_rupees_dataset.xlsx
+false_negatives.xlsx
+fraud_tracking_report.xlsx
+fraud_network.png
+shap_*.png
+~$*
+
+# Environment
+.env
+.env.local
+
+# Node
+node_modules/
+frontend/fraud-dashboard/build/
+frontend/fraud-dashboard/.env
+
+# OS
+.DS_Store
+~$*
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
