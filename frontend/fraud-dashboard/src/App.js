@@ -61,6 +61,9 @@ const Card = ({ children, style = {}, glow = false }) => (
       padding: "24px",
       borderRadius: "16px",
       border: `1px solid ${colors.border}`,
+      overflow: "hidden",
+      boxSizing: "border-box",
+      maxWidth: "100%",
       boxShadow: glow
         ? `0 0 30px ${colors.accentGlow}, 0 8px 32px rgba(0,0,0,0.4)`
         : "0 8px 32px rgba(0,0,0,0.3)",
@@ -72,10 +75,10 @@ const Card = ({ children, style = {}, glow = false }) => (
 );
 
 const StatCard = ({ label, value, color, icon }) => (
-  <Card style={{ flex: 1, minWidth: "160px", textAlign: "center" }} glow={color === colors.red}>
-    <div style={{ fontSize: "28px", marginBottom: "8px" }}>{icon}</div>
-    <div style={{ fontSize: "36px", fontWeight: "800", color, textShadow: `0 0 20px ${color}40` }}>{value}</div>
-    <div style={{ fontSize: "13px", color: colors.muted, marginTop: "4px", textTransform: "uppercase", letterSpacing: "1.5px" }}>{label}</div>
+  <Card style={{ flex: "1 1 auto", minWidth: "0", textAlign: "center" }} glow={color === colors.red}>
+    <div style={{ fontSize: "24px", marginBottom: "6px" }}>{icon}</div>
+    <div style={{ fontSize: "28px", fontWeight: "800", color, textShadow: `0 0 20px ${color}40`, wordBreak: "break-word" }}>{value}</div>
+    <div style={{ fontSize: "11px", color: colors.muted, marginTop: "4px", textTransform: "uppercase", letterSpacing: "1px" }}>{label}</div>
   </Card>
 );
 
@@ -1148,7 +1151,7 @@ export default function App() {
           {/* ==================== DASHBOARD TAB ==================== */}
           {activeTab === "dashboard" && (
             <motion.div key="dashboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <div style={{ display: "flex", gap: "20px", marginBottom: "32px", flexWrap: "wrap" }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(3, 1fr)", gap: isMobile ? "10px" : "20px", marginBottom: "32px" }}>
                 {txnData.map((item, i) => (
                   <StatCard key={i} label={item.name} value={item.value}
                     color={item.name === "FRAUD" ? colors.red : item.name === "SUSPICIOUS" ? colors.orange : colors.green}
@@ -1166,9 +1169,9 @@ export default function App() {
               <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "24px", marginBottom: "32px" }}>
                 <Card>
                   <SectionTitle icon="📊">Transaction Fraud Overview</SectionTitle>
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={txnData}>
-                      <XAxis dataKey="name" stroke={colors.muted} /><YAxis stroke={colors.muted} />
+                  <ResponsiveContainer width="100%" height={isMobile ? 220 : 280}>
+                    <BarChart data={txnData} margin={isMobile ? { left: -15, right: 5 } : undefined}>
+                      <XAxis dataKey="name" stroke={colors.muted} tick={{ fontSize: isMobile ? 10 : 12 }} /><YAxis stroke={colors.muted} tick={{ fontSize: isMobile ? 10 : 12 }} />
                       <Tooltip contentStyle={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: "8px", color: colors.white }} itemStyle={{ color: colors.white }} labelStyle={{ color: colors.white }} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
                       <Bar dataKey="value" radius={[8, 8, 0, 0]}>{txnData.map((_, i) => (<Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />))}</Bar>
                     </BarChart>
@@ -1177,14 +1180,14 @@ export default function App() {
                 <Card>
                   <SectionTitle icon="🔍">Spam Detection Summary</SectionTitle>
                   {spamSummary ? (
-                    <ResponsiveContainer width="100%" height={280}>
+                    <ResponsiveContainer width="100%" height={isMobile ? 220 : 280}>
                       <PieChart>
                         <Pie data={[{ name: "Scam", value: spamSummary.summary.scam }, { name: "Suspicious", value: spamSummary.summary.suspicious }, { name: "Safe", value: spamSummary.summary.safe }]}
-                          cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value">
+                          cx="50%" cy="50%" innerRadius={isMobile ? 40 : 60} outerRadius={isMobile ? 70 : 100} paddingAngle={5} dataKey="value">
                           {SPAM_PIE_COLORS.map((c, i) => (<Cell key={i} fill={c} />))}
                         </Pie>
                         <Tooltip contentStyle={{ background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: "8px", color: colors.white }} itemStyle={{ color: colors.white }} labelStyle={{ color: colors.white }} />
-                        <Legend wrapperStyle={{ color: colors.muted, fontSize: "12px" }} />
+                        <Legend wrapperStyle={{ color: colors.muted, fontSize: isMobile ? "10px" : "12px" }} />
                       </PieChart>
                     </ResponsiveContainer>
                   ) : <p style={{ color: colors.muted, textAlign: "center", padding: "80px 0" }}>Loading...</p>}
@@ -1199,7 +1202,7 @@ export default function App() {
                   </div>
                   <AnimatePresence>{showNetwork && (
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ overflow: "hidden" }}>
-                      <img src={`${API_BASE}/network`} alt="Fraud Network" style={{ width: "100%", maxHeight: "400px", objectFit: "contain", borderRadius: "12px", marginTop: "12px" }} 
+                      <img src={`${API_BASE}/network`} alt="Fraud Network" style={{ width: "100%", maxHeight: "400px", objectFit: "contain", borderRadius: "12px", marginTop: "12px", maxWidth: "100%", display: "block" }} 
                         onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }}
                       />
                       <div style={{ display: 'none', padding: "40px 20px", textAlign: "center", color: colors.muted, background: colors.bg, borderRadius: "12px", marginTop: "12px" }}>

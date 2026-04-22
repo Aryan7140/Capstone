@@ -12,6 +12,17 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background: #0a0e1a;
   color: #f8fafc;
+  overflow-x: hidden;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+table {
+  table-layout: auto;
+  word-break: break-word;
 }
 
 code {
