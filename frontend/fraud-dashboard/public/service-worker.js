@@ -1,6 +1,8 @@
 /* eslint-disable no-restricted-globals */
 
-const CACHE_NAME = 'fraudshield-v1';
+const CACHE_NAME = 'fraudshield-v3';
+
+// Only cache static assets — NEVER cache API responses
 const urlsToCache = [
   '/',
   '/index.html',
@@ -20,38 +22,63 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate — clean old caches
+// Activate — delete ALL old caches to force fresh content
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) =>
       Promise.all(
         cacheNames
           .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
+          .map((name) => {
+            console.log('[FraudShield SW] Deleting old cache:', name);
+            return caches.delete(name);
+          })
       )
     )
   );
   self.clients.claim();
 });
 
-// Fetch — network first, fallback to cache
+// Fetch handler — network-only for API, network-first for static assets
 self.addEventListener('fetch', (event) => {
-  // Skip non-GET and API requests
-  if (event.request.method !== 'GET') return;
-  if (event.request.url.includes('/investigate') || event.request.url.includes('/api/')) return;
+  const url = new URL(event.request.url);
 
+  // Skip non-GET requests entirely
+  if (event.request.method !== 'GET') return;
+
+  // NEVER cache API requests (Render backend, localhost, or any API calls)
+  if (
+    url.hostname.includes('onrender.com') ||
+    url.hostname === 'localhost' ||
+    url.pathname.startsWith('/investigate') ||
+    url.pathname.startsWith('/summary') ||
+    url.pathname.startsWith('/alerts') ||
+    url.pathname.startsWith('/spam') ||
+    url.pathname.startsWith('/account') ||
+    url.pathname.startsWith('/network') ||
+    url.pathname.startsWith('/shap') ||
+    url.pathname.startsWith('/run') ||
+    url.pathname.startsWith('/api')
+  ) {
+    // Network-only for API — no caching at all
+    return;
+  }
+
+  // For static assets: network first, fallback to cache
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Clone and cache the response
-        const responseClone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseClone);
-        });
+        // Only cache successful responses for same-origin static files
+        if (response.ok && url.origin === self.location.origin) {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
+        }
         return response;
       })
       .catch(() => {
-        // Fallback to cache
+        // Offline fallback to cache
         return caches.match(event.request);
       })
   );
