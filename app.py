@@ -13,12 +13,21 @@ def index():
     return jsonify({
         "status": "online",
         "service": "FraudShield API",
-        "endpoints": ["/health", "/summary", "/alerts", "/investigate", "/spam/summary", "/spam/check"]
+        "endpoints": ["/health", "/status", "/summary", "/alerts", "/investigate", "/spam/summary", "/spam/check"]
     })
 
 @app.route("/health")
 def health():
     return jsonify({"status": "ok"})
+
+@app.route("/status")
+def status():
+    from account_lookup import get_loading_status
+    return jsonify(get_loading_status())
+
+# Start loading data in background immediately
+from account_lookup import start_data_loading
+start_data_loading()
 
 # ========================================
 # EXISTING ENDPOINTS (Transaction Fraud)

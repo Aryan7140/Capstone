@@ -2,6 +2,7 @@ import re
 import pandas as pd
 import os
 import firebase_client
+import threading
 
 # ========================================
 # LOAD DATASETS ONCE ON IMPORT
@@ -13,47 +14,72 @@ _dataset = None
 _fraud_results = None
 _fraud_report = None
 _data_loaded = False
+_data_loading = False
+_error = None
 
-def _ensure_data_loaded():
-    global _dataset, _fraud_results, _fraud_report, _data_loaded
-    if _data_loaded:
-        return
-    _data_loaded = True
+def _load_data_thread():
+    global _dataset, _fraud_results, _fraud_report, _data_loaded, _data_loading, _error
+    _data_loading = True
     try:
+        # Load main dataset
         _dataset_path = os.path.join(_dir, "indian_cities_rupees_dataset.csv")
         if not os.path.exists(_dataset_path):
-            # Fallback to Excel if CSV doesn't exist
             _dataset_path = os.path.join(_dir, "indian_cities_rupees_dataset.xlsx")
             
         if os.path.exists(_dataset_path):
-            # Only load necessary columns to save memory
             required_cols = [
                 "transaction_id", "timestamp", "sender_account", "receiver_account", 
                 "amount_inr", "transaction_type", "merchant_category", "location", 
                 "device_used", "is_fraud", "payment_channel", "ip_address", 
                 "device_hash", "Risk_Engine_Output"
             ]
-            
             if _dataset_path.endswith(".csv"):
                 _dataset = pd.read_csv(_dataset_path, usecols=required_cols)
             else:
                 _dataset = pd.read_excel(_dataset_path, usecols=required_cols)
-                
             _dataset["timestamp"] = pd.to_datetime(_dataset["timestamp"])
-            
-            # Memory optimization: downcast numeric types
             if "is_fraud" in _dataset.columns:
                 _dataset["is_fraud"] = _dataset["is_fraud"].astype("bool")
             if "amount_inr" in _dataset.columns:
                 _dataset["amount_inr"] = pd.to_numeric(_dataset["amount_inr"], downcast="float")
-            if "Risk_Engine_Output" in _dataset.columns:
-                _dataset["Risk_Engine_Output"] = pd.to_numeric(_dataset["Risk_Engine_Output"], downcast="float")
-            
-            print(f"[account_lookup] Optimized load: {len(_dataset)} rows")
-        else:
-            print(f"[account_lookup] WARNING: {_dataset_path} not found")
+            print(f"[account_lookup] Main dataset loaded: {len(_dataset)} rows")
+        
+        # Load other smaller files
+        try:
+            _fraud_results_path = os.path.join(_dir, "realtime_fraud_results.xlsx")
+            if os.path.exists(_fraud_results_path):
+                _fraud_results = pd.read_excel(_fraud_results_path)
+            _fraud_report_path = os.path.join(_dir, "fraud_tracking_report.xlsx")
+            if os.path.exists(_fraud_report_path):
+                _fraud_report = pd.read_excel(_fraud_report_path)
+        except:
+            pass
+
+        _data_loaded = True
     except Exception as e:
-        print(f"[account_lookup] ERROR loading dataset: {e}")
+        _error = str(e)
+        print(f"[account_lookup] Error loading data: {e}")
+    finally:
+        _data_loading = False
+
+def start_data_loading():
+    global _data_loading, _data_loaded
+    if not _data_loaded and not _data_loading:
+        thread = threading.Thread(target=_load_data_thread)
+        thread.daemon = True
+        thread.start()
+
+def get_loading_status():
+    return {
+        "loaded": _data_loaded,
+        "loading": _data_loading,
+        "error": _error
+    }
+
+def _ensure_data_loaded():
+    if not _data_loaded and not _data_loading:
+        start_data_loading()
+    return _data_loaded
     try:
         _fraud_results_path = os.path.join(_dir, "realtime_fraud_results.xlsx")
         if os.path.exists(_fraud_results_path):

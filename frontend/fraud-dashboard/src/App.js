@@ -534,6 +534,23 @@ export default function App() {
     retryCountRef.current = 0;
     setRetryCount(0);
 
+    // 1. Wait for server status to be "loaded"
+    let isLoaded = false;
+    for (let i = 0; i < 20; i++) {
+      const status = await fetchWithRetry(`${API_BASE}/status`, 1, 5000);
+      if (status?.loaded) {
+        isLoaded = true;
+        break;
+      }
+      if (status?.error) {
+        console.error("Backend loading error:", status.error);
+        break; 
+      }
+      // Wait before polling again
+      await new Promise(r => setTimeout(r, 5000));
+    }
+
+    // 2. Load data
     const [summary, alerts, spam] = await Promise.all([
       fetchWithRetry(`${API_BASE}/summary`),
       fetchWithRetry(`${API_BASE}/alerts`),
