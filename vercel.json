@@ -1,0 +1,11 @@
+{
+  "buildCommand": "cd frontend/fraud-dashboard && npm install && npm run build",
+  "outputDirectory": "frontend/fraud-dashboard/build",
+  "framework": "create-react-app",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
