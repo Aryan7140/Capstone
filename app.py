@@ -8,6 +8,14 @@ from account_lookup import investigate_message, lookup_account_history, extract_
 app = Flask(__name__)
 CORS(app)
 
+@app.route("/")
+def index():
+    return jsonify({
+        "status": "online",
+        "service": "FraudShield API",
+        "endpoints": ["/summary", "/alerts", "/investigate", "/spam/summary", "/spam/check"]
+    })
+
 # ========================================
 # EXISTING ENDPOINTS (Transaction Fraud)
 # ========================================

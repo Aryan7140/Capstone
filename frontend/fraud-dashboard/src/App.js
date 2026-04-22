@@ -11,7 +11,7 @@ import AuthPage from "./Auth";
 // API base URL — localhost in dev, Render in production
 const API_BASE = window.location.hostname === "localhost" 
   ? "http://localhost:8000" 
-  : "https://fraudshield-api.onrender.com";
+  : "https://fraudshield-api-fq4s.onrender.com";
 
 // Hook for responsive breakpoints
 const useIsMobile = () => {
