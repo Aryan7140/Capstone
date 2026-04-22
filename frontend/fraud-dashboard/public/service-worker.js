@@ -4,11 +4,11 @@ const CACHE_NAME = 'fraudshield-v3';
 
 // Only cache static assets — NEVER cache API responses
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/logo192.png',
-  '/logo512.png',
-  '/manifest.json',
+  './',
+  'index.html',
+  'logo192.png',
+  'logo512.png',
+  'manifest.json',
 ];
 
 // Install — cache app shell
