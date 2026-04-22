@@ -8,9 +8,10 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "./firebase";
 import AuthPage from "./Auth";
 
-// Detect API base URL — use localhost in dev, disable in production
-const API_BASE = window.location.hostname === "localhost" ? "http://localhost:8000" : null;
-const INVESTIGATE_URL = "http://localhost:8000"; // Investigation always needs the Python backend
+// API base URL — localhost in dev, Render in production
+const API_BASE = window.location.hostname === "localhost" 
+  ? "http://localhost:8000" 
+  : "https://fraudshield-api.onrender.com";
 
 // Hook for responsive breakpoints
 const useIsMobile = () => {
@@ -496,9 +497,8 @@ export default function App() {
     };
   }, []);
 
-  // Fetch data on mount — only when API is available (local dev)
+  // Fetch data on mount
   useEffect(() => {
-    if (!API_BASE) return;
     fetch(`${API_BASE}/summary`).then((r) => r.json()).then(setTxnData).catch(() => {});
     fetch(`${API_BASE}/alerts`).then((r) => r.json()).then(setTxnAlerts).catch(() => {});
     fetch(`${API_BASE}/spam/summary`).then((r) => r.json()).then(setSpamSummary).catch(() => {});
@@ -511,7 +511,7 @@ export default function App() {
     setInvestigateError("");
     setInvestigateResult(null);
     try {
-      const res = await fetch(`${INVESTIGATE_URL}/investigate`, {
+      const res = await fetch(`${API_BASE}/investigate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: messageInput, phone_number: phoneNumber, name: callerName, email: emailInput }),
@@ -1199,15 +1199,13 @@ export default function App() {
                   </div>
                   <AnimatePresence>{showNetwork && (
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ overflow: "hidden" }}>
-                      {API_BASE ? (
-                        <img src={`${API_BASE}/network`} alt="Fraud Network" style={{ width: "100%", maxHeight: "400px", objectFit: "contain", borderRadius: "12px", marginTop: "12px" }} />
-                      ) : (
-                        <div style={{ padding: "40px 20px", textAlign: "center", color: colors.muted, background: colors.bg, borderRadius: "12px", marginTop: "12px" }}>
-                          <div style={{ fontSize: "40px", marginBottom: "12px" }}>🌐</div>
-                          <p style={{ margin: 0, fontSize: "14px" }}>Fraud Network Graph is available when the backend server is running locally.</p>
-                          <p style={{ margin: "8px 0 0", fontSize: "12px", color: colors.textSecondary }}>Run <code style={{ background: colors.surfaceLight, padding: "2px 8px", borderRadius: "4px" }}>python app.py</code> to enable.</p>
-                        </div>
-                      )}
+                      <img src={`${API_BASE}/network`} alt="Fraud Network" style={{ width: "100%", maxHeight: "400px", objectFit: "contain", borderRadius: "12px", marginTop: "12px" }} 
+                        onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }}
+                      />
+                      <div style={{ display: 'none', padding: "40px 20px", textAlign: "center", color: colors.muted, background: colors.bg, borderRadius: "12px", marginTop: "12px" }}>
+                        <div style={{ fontSize: "40px", marginBottom: "12px" }}>🌐</div>
+                        <p style={{ margin: 0, fontSize: "14px" }}>Fraud Network Graph will load once the backend warms up (~30s first time).</p>
+                      </div>
                     </motion.div>
                   )}</AnimatePresence>
                 </Card>
@@ -1218,15 +1216,13 @@ export default function App() {
                   </div>
                   <AnimatePresence>{showShap && (
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ overflow: "hidden" }}>
-                      {API_BASE ? (
-                        <img src={`${API_BASE}/shap_summary`} alt="SHAP" style={{ width: "100%", maxHeight: "400px", objectFit: "contain", borderRadius: "12px", marginTop: "12px" }} />
-                      ) : (
-                        <div style={{ padding: "40px 20px", textAlign: "center", color: colors.muted, background: colors.bg, borderRadius: "12px", marginTop: "12px" }}>
-                          <div style={{ fontSize: "40px", marginBottom: "12px" }}>📈</div>
-                          <p style={{ margin: 0, fontSize: "14px" }}>SHAP Explainability charts are available when the backend server is running locally.</p>
-                          <p style={{ margin: "8px 0 0", fontSize: "12px", color: colors.textSecondary }}>Run <code style={{ background: colors.surfaceLight, padding: "2px 8px", borderRadius: "4px" }}>python app.py</code> to enable.</p>
-                        </div>
-                      )}
+                      <img src={`${API_BASE}/shap_summary`} alt="SHAP" style={{ width: "100%", maxHeight: "400px", objectFit: "contain", borderRadius: "12px", marginTop: "12px" }} 
+                        onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }}
+                      />
+                      <div style={{ display: 'none', padding: "40px 20px", textAlign: "center", color: colors.muted, background: colors.bg, borderRadius: "12px", marginTop: "12px" }}>
+                        <div style={{ fontSize: "40px", marginBottom: "12px" }}>📈</div>
+                        <p style={{ margin: 0, fontSize: "14px" }}>SHAP charts will load once the backend warms up (~30s first time).</p>
+                      </div>
                     </motion.div>
                   )}</AnimatePresence>
                 </Card>

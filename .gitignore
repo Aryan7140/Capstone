@@ -4,12 +4,16 @@ __pycache__/
 venv/
 *.egg-info/
 
-# Large data files (GitHub has 100MB limit)
-*.pkl
-*.csv
-*.xlsx
-*.xls
+# Large unnecessary data files (keep only what backend needs)
+fraud_predictions.csv
+processed_features.csv
+labels.csv
+indian_cities_rupees_dataset.xlsx
+false_negatives.xlsx
+fraud_tracking_report.xlsx
 fraud_network.png
+shap_*.png
+~$*
 
 # Environment
 .env
