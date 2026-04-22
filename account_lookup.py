@@ -7,20 +7,40 @@ import firebase_client
 # LOAD DATASETS ONCE ON IMPORT
 # ========================================
 _dir = os.path.dirname(os.path.abspath(__file__))
-_dataset = pd.read_excel(os.path.join(_dir, "indian_cities_rupees_dataset.xlsx"))
-_dataset["timestamp"] = pd.to_datetime(_dataset["timestamp"])
 
-# Also load fraud results if available
+# Lazy-load datasets to prevent import-time crashes on Render
+_dataset = None
 _fraud_results = None
 _fraud_report = None
-try:
-    _fraud_results = pd.read_excel(os.path.join(_dir, "realtime_fraud_results.xlsx"))
-except Exception:
-    pass
-try:
-    _fraud_report = pd.read_excel(os.path.join(_dir, "fraud_tracking_report.xlsx"))
-except Exception:
-    pass
+_data_loaded = False
+
+def _ensure_data_loaded():
+    global _dataset, _fraud_results, _fraud_report, _data_loaded
+    if _data_loaded:
+        return
+    _data_loaded = True
+    try:
+        _dataset_path = os.path.join(_dir, "indian_cities_rupees_dataset.xlsx")
+        if os.path.exists(_dataset_path):
+            _dataset = pd.read_excel(_dataset_path)
+            _dataset["timestamp"] = pd.to_datetime(_dataset["timestamp"])
+            print(f"[account_lookup] Loaded dataset: {len(_dataset)} rows")
+        else:
+            print(f"[account_lookup] WARNING: {_dataset_path} not found")
+    except Exception as e:
+        print(f"[account_lookup] ERROR loading dataset: {e}")
+    try:
+        _fraud_results_path = os.path.join(_dir, "realtime_fraud_results.xlsx")
+        if os.path.exists(_fraud_results_path):
+            _fraud_results = pd.read_excel(_fraud_results_path)
+    except Exception:
+        pass
+    try:
+        _fraud_report_path = os.path.join(_dir, "fraud_tracking_report.xlsx")
+        if os.path.exists(_fraud_report_path):
+            _fraud_report = pd.read_excel(_fraud_report_path)
+    except Exception:
+        pass
 
 
 # ========================================
@@ -225,7 +245,11 @@ def lookup_account_history(account_id):
       - transaction_history: list of dicts
       - risk_profile: dict with summary stats
     """
+    _ensure_data_loaded()
     acc = account_id.upper().strip()
+
+    if _dataset is None:
+        return {"found": False, "account_id": acc, "error": "Dataset not loaded"}
 
     # Search as sender
     as_sender = _dataset[_dataset["sender_account"] == acc]
@@ -356,6 +380,7 @@ def investigate_message(message, phone_number=None, caller_name=None, email=None
     4. Amount extraction from message
     5. Receiver history lookup for extracted accounts
     """
+    _ensure_data_loaded()
     from spam_detection import detect_digital_arrest
 
     # 1. Spam detection

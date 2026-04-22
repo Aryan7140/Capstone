@@ -13,8 +13,12 @@ def index():
     return jsonify({
         "status": "online",
         "service": "FraudShield API",
-        "endpoints": ["/summary", "/alerts", "/investigate", "/spam/summary", "/spam/check"]
+        "endpoints": ["/health", "/summary", "/alerts", "/investigate", "/spam/summary", "/spam/check"]
     })
+
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok"})
 
 # ========================================
 # EXISTING ENDPOINTS (Transaction Fraud)
@@ -22,22 +26,32 @@ def index():
 
 @app.route("/summary")
 def summary():
-    df = pd.read_excel("realtime_fraud_results.xlsx")
-
-    fraud = len(df[df["decision"] == "FRAUD"])
-    suspicious = len(df[df["decision"] == "SUSPICIOUS"])
-    safe = len(df[df["decision"] == "SAFE"])
-
-    return jsonify([
-        {"name": "FRAUD", "value": fraud},
-        {"name": "SUSPICIOUS", "value": suspicious},
-        {"name": "SAFE", "value": safe}
-    ])
+    try:
+        df = pd.read_excel("realtime_fraud_results.xlsx")
+        fraud = len(df[df["decision"] == "FRAUD"])
+        suspicious = len(df[df["decision"] == "SUSPICIOUS"])
+        safe = len(df[df["decision"] == "SAFE"])
+        return jsonify([
+            {"name": "FRAUD", "value": fraud},
+            {"name": "SUSPICIOUS", "value": suspicious},
+            {"name": "SAFE", "value": safe}
+        ])
+    except Exception as e:
+        print(f"[summary] Error: {e}")
+        return jsonify([
+            {"name": "FRAUD", "value": 0},
+            {"name": "SUSPICIOUS", "value": 0},
+            {"name": "SAFE", "value": 0}
+        ])
 
 @app.route("/alerts")
 def alerts():
-    df = pd.read_excel("realtime_fraud_results.xlsx")
-    return jsonify(df.to_dict(orient="records"))
+    try:
+        df = pd.read_excel("realtime_fraud_results.xlsx")
+        return jsonify(df.to_dict(orient="records"))
+    except Exception as e:
+        print(f"[alerts] Error: {e}")
+        return jsonify([])
 
 @app.route("/run")
 def run():

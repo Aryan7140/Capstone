@@ -504,48 +504,55 @@ export default function App() {
   const [apiLoading, setApiLoading] = useState(true);
   const [apiError, setApiError] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    const fetchWithRetry = async (url, retries = 3, delay = 5000) => {
+  const retryCountRef = useRef(0);
+  const [retryCount, setRetryCount] = useState(0);
+
+  const loadAllData = useCallback(async (signal) => {
+    const fetchWithRetry = async (url, retries = 10, delay = 8000) => {
       for (let i = 0; i < retries; i++) {
+        if (signal?.aborted) return null;
         try {
           const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 30000); // 30s timeout
+          const timeout = setTimeout(() => controller.abort(), 60000); // 60s timeout
           const res = await fetch(url, { signal: controller.signal });
           clearTimeout(timeout);
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           return await res.json();
         } catch (err) {
+          retryCountRef.current++;
+          setRetryCount(retryCountRef.current);
           if (i < retries - 1) {
-            await new Promise(r => setTimeout(r, delay * (i + 1)));
+            await new Promise(r => setTimeout(r, delay + (i * 3000)));
           }
         }
       }
       return null;
     };
 
-    const loadAll = async () => {
-      if (cancelled) return;
-      setApiLoading(true);
-      setApiError(false);
-      
-      const [summary, alerts, spam] = await Promise.all([
-        fetchWithRetry(`${API_BASE}/summary`),
-        fetchWithRetry(`${API_BASE}/alerts`),
-        fetchWithRetry(`${API_BASE}/spam/summary`),
-      ]);
+    setApiLoading(true);
+    setApiError(false);
+    retryCountRef.current = 0;
+    setRetryCount(0);
 
-      if (cancelled) return;
-      if (summary) setTxnData(summary);
-      if (alerts) setTxnAlerts(alerts);
-      if (spam) setSpamSummary(spam);
-      setApiLoading(false);
-      if (!summary && !alerts && !spam) setApiError(true);
-    };
+    const [summary, alerts, spam] = await Promise.all([
+      fetchWithRetry(`${API_BASE}/summary`),
+      fetchWithRetry(`${API_BASE}/alerts`),
+      fetchWithRetry(`${API_BASE}/spam/summary`),
+    ]);
 
-    loadAll();
-    return () => { cancelled = true; };
+    if (signal?.aborted) return;
+    if (summary) setTxnData(summary);
+    if (alerts) setTxnAlerts(alerts);
+    if (spam) setSpamSummary(spam);
+    setApiLoading(false);
+    if (!summary && !alerts && !spam) setApiError(true);
   }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadAllData(controller.signal);
+    return () => controller.abort();
+  }, [loadAllData]);
 
   // Full investigation
   const runInvestigation = async () => {
@@ -1204,8 +1211,9 @@ export default function App() {
                   </motion.div>
                   <h3 style={{ color: colors.white, fontSize: "20px", fontWeight: "700", margin: "0 0 8px" }}>Warming Up Server...</h3>
                   <p style={{ color: colors.muted, fontSize: "14px", margin: 0, lineHeight: "1.6" }}>
-                    The backend server is starting up (free tier takes ~30-60 seconds on first load).
+                    The backend server is starting up (free tier takes ~1-2 minutes on first load).
                     <br />Data will appear automatically once ready.
+                    {retryCount > 0 && <><br /><span style={{ color: colors.accent }}>Attempt {Math.ceil(retryCount / 3)} of 10 — still trying...</span></>}
                   </p>
                   <motion.div
                     style={{ width: "200px", height: "4px", background: colors.border, borderRadius: "2px", margin: "20px auto 0", overflow: "hidden" }}
@@ -1224,8 +1232,8 @@ export default function App() {
                 <Card style={{ marginBottom: "24px", borderLeft: `4px solid ${colors.orange}`, textAlign: "center", padding: "32px 24px" }}>
                   <div style={{ fontSize: "40px", marginBottom: "12px" }}>⚠️</div>
                   <h3 style={{ color: colors.orange, fontSize: "18px", fontWeight: "700", margin: "0 0 8px" }}>Could Not Load Dashboard Data</h3>
-                  <p style={{ color: colors.muted, fontSize: "14px", margin: "0 0 16px" }}>The backend server may still be starting. Try refreshing.</p>
-                  <button onClick={() => window.location.reload()} style={{ padding: "12px 32px", background: `linear-gradient(135deg, ${colors.accent}, ${colors.purple})`, color: colors.white, border: "none", borderRadius: "10px", cursor: "pointer", fontSize: "14px", fontWeight: "600" }}>
+                  <p style={{ color: colors.muted, fontSize: "14px", margin: "0 0 16px" }}>The backend server may still be starting. Try again.</p>
+                  <button onClick={() => loadAllData()} style={{ padding: "12px 32px", background: `linear-gradient(135deg, ${colors.accent}, ${colors.purple})`, color: colors.white, border: "none", borderRadius: "10px", cursor: "pointer", fontSize: "14px", fontWeight: "600" }}>
                     🔄 Retry
                   </button>
                 </Card>
