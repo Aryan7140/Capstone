@@ -20,16 +20,25 @@ def _ensure_data_loaded():
         return
     _data_loaded = True
     try:
-        _dataset_path = os.path.join(_dir, "indian_cities_rupees_dataset.xlsx")
+        _dataset_path = os.path.join(_dir, "indian_cities_rupees_dataset.csv")
+        if not os.path.exists(_dataset_path):
+            # Fallback to Excel if CSV doesn't exist
+            _dataset_path = os.path.join(_dir, "indian_cities_rupees_dataset.xlsx")
+            
         if os.path.exists(_dataset_path):
-            # Only load necessary columns to save memory (Render free tier limit is 512MB)
+            # Only load necessary columns to save memory
             required_cols = [
                 "transaction_id", "timestamp", "sender_account", "receiver_account", 
                 "amount_inr", "transaction_type", "merchant_category", "location", 
                 "device_used", "is_fraud", "payment_channel", "ip_address", 
                 "device_hash", "Risk_Engine_Output"
             ]
-            _dataset = pd.read_excel(_dataset_path, usecols=required_cols)
+            
+            if _dataset_path.endswith(".csv"):
+                _dataset = pd.read_csv(_dataset_path, usecols=required_cols)
+            else:
+                _dataset = pd.read_excel(_dataset_path, usecols=required_cols)
+                
             _dataset["timestamp"] = pd.to_datetime(_dataset["timestamp"])
             
             # Memory optimization: downcast numeric types

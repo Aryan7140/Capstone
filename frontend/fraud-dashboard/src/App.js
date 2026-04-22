@@ -513,7 +513,7 @@ export default function App() {
         if (signal?.aborted) return null;
         try {
           const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 60000); // 60s timeout
+          const timeout = setTimeout(() => controller.abort(), 120000); // 120s timeout
           const res = await fetch(url, { signal: controller.signal });
           clearTimeout(timeout);
           if (!res.ok) throw new Error(`HTTP ${res.status}`);

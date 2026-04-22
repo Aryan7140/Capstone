@@ -8,6 +8,7 @@ venv/
 fraud_predictions.csv
 processed_features.csv
 labels.csv
+!indian_cities_rupees_dataset.csv
 indian_cities_rupees_dataset.xlsx
 false_negatives.xlsx
 fraud_tracking_report.xlsx
