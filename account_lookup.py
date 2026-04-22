@@ -22,9 +22,25 @@ def _ensure_data_loaded():
     try:
         _dataset_path = os.path.join(_dir, "indian_cities_rupees_dataset.xlsx")
         if os.path.exists(_dataset_path):
-            _dataset = pd.read_excel(_dataset_path)
+            # Only load necessary columns to save memory (Render free tier limit is 512MB)
+            required_cols = [
+                "transaction_id", "timestamp", "sender_account", "receiver_account", 
+                "amount_inr", "transaction_type", "merchant_category", "location", 
+                "device_used", "is_fraud", "payment_channel", "ip_address", 
+                "device_hash", "Risk_Engine_Output"
+            ]
+            _dataset = pd.read_excel(_dataset_path, usecols=required_cols)
             _dataset["timestamp"] = pd.to_datetime(_dataset["timestamp"])
-            print(f"[account_lookup] Loaded dataset: {len(_dataset)} rows")
+            
+            # Memory optimization: downcast numeric types
+            if "is_fraud" in _dataset.columns:
+                _dataset["is_fraud"] = _dataset["is_fraud"].astype("bool")
+            if "amount_inr" in _dataset.columns:
+                _dataset["amount_inr"] = pd.to_numeric(_dataset["amount_inr"], downcast="float")
+            if "Risk_Engine_Output" in _dataset.columns:
+                _dataset["Risk_Engine_Output"] = pd.to_numeric(_dataset["Risk_Engine_Output"], downcast="float")
+            
+            print(f"[account_lookup] Optimized load: {len(_dataset)} rows")
         else:
             print(f"[account_lookup] WARNING: {_dataset_path} not found")
     except Exception as e:
