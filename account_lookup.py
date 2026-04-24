@@ -21,6 +21,12 @@ def _load_data_thread():
     global _dataset, _fraud_results, _fraud_report, _data_loaded, _data_loading, _error
     _data_loading = True
     try:
+        # Load ML model in background too
+        try:
+            from spam_detection import _ensure_model_loaded
+            _ensure_model_loaded()
+        except:
+            pass
         _dataset_path = os.path.join(_dir, "indian_cities_rupees_dataset.parquet")
         if not os.path.exists(_dataset_path):
             _dataset_path = os.path.join(_dir, "indian_cities_rupees_dataset.csv")
@@ -620,6 +626,10 @@ def investigate_message(message, phone_number=None, caller_name=None, email=None
     
     # Save investigation
     firebase_client.save_investigation(result_dict)
+
+    # Save standalone threat message if it's high risk
+    if overall_threat in ["CRITICAL", "HIGH"]:
+        firebase_client.save_threat_message(message, overall_threat, combined_threat_score)
     
     # Save entities
     status_to_save = "FLAGGED" if overall_threat in ["CRITICAL", "HIGH"] or spam_result.get("decision") == "DIGITAL_ARREST_SCAM" else "SAFE"

@@ -111,3 +111,18 @@ def save_investigation(record):
     }
     
     _make_request(url, "POST", data=doc_data)
+
+def save_threat_message(message, threat_level, score):
+    """
+    Save a standalone threat message to Firebase.
+    """
+    url = f"{BASE_URL}/threat_messages?key={API_KEY}"
+    doc_data = {
+        "fields": {
+            "timestamp": {"stringValue": datetime.utcnow().isoformat() + "Z"},
+            "message": {"stringValue": message},
+            "threat_level": {"stringValue": threat_level},
+            "score": {"doubleValue": float(score)}
+        }
+    }
+    _make_request(url, "POST", data=doc_data)

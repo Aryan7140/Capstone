@@ -2,19 +2,26 @@ import joblib
 import os
 import re
 
-# Load model and vectorizer
+# Load model and vectorizer lazily
 _dir = os.path.dirname(os.path.abspath(__file__))
-_model = joblib.load(os.path.join(_dir, "spam_model.pkl"))
-_vectorizer = joblib.load(os.path.join(_dir, "spam_vectorizer.pkl"))
+_model = None
+_vectorizer = None
+
+def _ensure_model_loaded():
+    global _model, _vectorizer
+    if _model is None:
+        try:
+            _model = joblib.load(os.path.join(_dir, "spam_model.pkl"))
+            _vectorizer = joblib.load(os.path.join(_dir, "spam_vectorizer.pkl"))
+            print("[spam_detection] ML model and vectorizer loaded")
+        except Exception as e:
+            print(f"[spam_detection] ERROR loading model: {e}")
 
 
 def classify_message(message):
-    """
-    Classify a single message as spam or ham.
-
-    Returns:
-        dict with keys: label, confidence, spam_probability
-    """
+    _ensure_model_loaded()
+    if _model is None:
+        return {"label": "ERROR", "confidence": 0, "spam_probability": 0, "risk_level": "LOW"}
     X = _vectorizer.transform([message])
     prediction = _model.predict(X)[0]
     probabilities = _model.predict_proba(X)[0]
@@ -76,7 +83,10 @@ DIGITAL_ARREST_KEYWORDS = [
     "under arrest", "get arrested", "face arrest",
     "fir", "case registered", "case filed",
     "cyber crime", "cyber cell", "fraud case",
-    "impersonat", "scam", "blackmail",
+    "impersonat", "scam", "blackmail", "police officer",
+    "bol raha hoon", "fir darz", "case register", "arrest warrant",
+    "paisa bhej", "transfer karo", "karo transfer", "jaldi bhej",
+    "kripya transfer", "police bol rahi", "crime branch se",
 ]
 
 # Phishing / social engineering — ANY personal or sensitive info
@@ -161,6 +171,8 @@ THREAT_KEYWORDS = [
     "you must", "you need to", "you are required",
     "deadline", "time is running", "hurry",
     "or we will", "consequences", "action will be taken",
+    "legal action", "court case", "jail jaoge", "fasi", "dhokha",
+    "shikayat", "complain", "complaint",
 ]
 
 
@@ -358,6 +370,8 @@ EXTORTION_PHRASES = [
     "hafta de", "hafta dena padega",
     "warna dekh", "nahi diya to",
     "paisa nahi diya", "dega ya nahi",
+    "transfer kar", "bhej de", "jaldi kar",
+    "nahi toh", "varnaa", "police aayegi",
 ]
 
 EXTORTION_KEYWORDS = [
