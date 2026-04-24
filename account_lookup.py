@@ -194,6 +194,12 @@ CURRENCY_SYMBOLS = r'₹|\$|£|€|¥|₩|₫|₦|₱|฿|₺|₴|₸|₽|﷼|z�
 CURRENCY_WORDS_BEFORE = r'rs\.?|inr|usd|gbp|eur|jpy|cny|aud|cad|sgd|aed|sar|qar|krw|thb|myr|php|idr|vnd|brl|zar|ngn|egp|twd|rub|try|pln|czk|huf|sek|nok|dkk|chf|nzd|hkd|mxn|clp|cop|pen|ars'
 CURRENCY_WORDS_AFTER = r'rs\.?|rupees?|rupya|dollars?|pounds?|euros?|yen|yuan|won|baht|ringgit|peso|pesos|ruble|rubles|lira|franc|francs|dirham|dirhams|riyal|riyals|kroner?|rand|naira|real|reais|dong|zloty|koruna|forint|kronor|kroner|inr|usd|gbp|eur|jpy|/-'
 
+HINDI_NUMBERS = {
+    'ek': 1, 'do': 2, 'teen': 3, 'chaar': 4, 'paanch': 5,
+    'che': 6, 'chheh': 6, 'saat': 7, 'aath': 8, 'nau': 9, 'das': 10,
+    'bees': 20, 'pachaas': 50, 'sau': 100
+}
+
 
 def extract_amounts(text):
     """
@@ -253,6 +259,16 @@ def extract_amounts(text):
         val = _parse_amount(m)
         if val is not None:
             found_amounts.append(val * 10000000)
+
+    # Pattern 7: Hindi Number Words + Lakh/Crore
+    # ek lakh, paanch crore, das lakh
+    hindi_num_pattern = r'\b(' + '|'.join(HINDI_NUMBERS.keys()) + r')\s*(lakhs?|lacs?|crores?|cr)\b'
+    p7 = re.findall(hindi_num_pattern, text, re.IGNORECASE)
+    for word, unit in p7:
+        val = HINDI_NUMBERS.get(word.lower())
+        if val:
+            multiplier = 100000 if 'la' in unit.lower() else 10000000
+            found_amounts.append(val * multiplier)
 
     # Pattern 6: K / M / B suffixes (thousand / million / billion)
     p6 = re.findall(
