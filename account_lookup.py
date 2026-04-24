@@ -21,8 +21,9 @@ def _load_data_thread():
     global _dataset, _fraud_results, _fraud_report, _data_loaded, _data_loading, _error
     _data_loading = True
     try:
-        # Load main dataset
-        _dataset_path = os.path.join(_dir, "indian_cities_rupees_dataset.csv")
+        _dataset_path = os.path.join(_dir, "indian_cities_rupees_dataset.parquet")
+        if not os.path.exists(_dataset_path):
+            _dataset_path = os.path.join(_dir, "indian_cities_rupees_dataset.csv")
         if not os.path.exists(_dataset_path):
             _dataset_path = os.path.join(_dir, "indian_cities_rupees_dataset.xlsx")
             
@@ -33,11 +34,15 @@ def _load_data_thread():
                 "device_used", "is_fraud", "payment_channel", "ip_address", 
                 "device_hash", "Risk_Engine_Output"
             ]
-            if _dataset_path.endswith(".csv"):
+            
+            if _dataset_path.endswith(".parquet"):
+                _dataset = pd.read_parquet(_dataset_path, columns=required_cols)
+            elif _dataset_path.endswith(".csv"):
                 _dataset = pd.read_csv(_dataset_path, usecols=required_cols)
+                _dataset["timestamp"] = pd.to_datetime(_dataset["timestamp"])
             else:
                 _dataset = pd.read_excel(_dataset_path, usecols=required_cols)
-            _dataset["timestamp"] = pd.to_datetime(_dataset["timestamp"])
+                _dataset["timestamp"] = pd.to_datetime(_dataset["timestamp"])
             if "is_fraud" in _dataset.columns:
                 _dataset["is_fraud"] = _dataset["is_fraud"].astype("bool")
             if "amount_inr" in _dataset.columns:
