@@ -125,24 +125,42 @@ def digital_arrest_batch():
 
 @app.route("/spam/summary")
 def spam_summary():
-    sample_messages = [
-        "This is CBI officer. You are under digital arrest for money laundering. Transfer Rs 2,00,000 now.",
-        "Your parcel contains illegal drugs. Pay fine of Rs 50,000 or get arrested.",
-        "WINNER! Claim your Rs 10,00,000 prize now. Call 09876543210.",
-        "Hey, are we still meeting for coffee tomorrow?",
-        "Your Aadhaar is linked to fraud. Verify identity immediately or face arrest.",
-        "Hi Mom, reached safely. Will call you later.",
-        "Police here. Your bank account is under investigation. Transfer all funds to this safe account.",
-        "Bro can you pick me up from the station?",
-    ]
-    results = [detect_digital_arrest(msg) for msg in sample_messages]
-    summary_data = {
-        "total": len(results),
-        "scam": sum(1 for r in results if r["decision"] == "DIGITAL_ARREST_SCAM"),
-        "suspicious": sum(1 for r in results if r["decision"] == "SUSPICIOUS"),
-        "safe": sum(1 for r in results if r["decision"] == "SAFE"),
-    }
-    return jsonify({"results": results, "summary": summary_data})
+    try:
+        import firebase_client
+        # Fetch investigations from Firebase
+        url = f"{firebase_client.BASE_URL}/investigations?key={firebase_client.API_KEY}"
+        data, status = firebase_client._make_request(url, "GET")
+        
+        results = []
+        if status == 200 and data and "documents" in data:
+            for doc in data["documents"]:
+                fields = doc.get("fields", {})
+                threat_level = fields.get("threat_level", {}).get("stringValue", "LOW")
+                
+                # Map threat levels to dashboard categories
+                decision = "SAFE"
+                if threat_level == "CRITICAL" or threat_level == "HIGH":
+                    decision = "DIGITAL_ARREST_SCAM"
+                elif threat_level == "MEDIUM":
+                    decision = "SUSPICIOUS"
+                
+                results.append({"decision": decision})
+        
+        # Fallback to samples if no data yet
+        if not results:
+            sample_messages = ["CBI officer here", "Aadhaar fraud", "Hey mom"]
+            results = [detect_digital_arrest(msg) for msg in sample_messages]
+
+        summary_data = {
+            "total": len(results),
+            "scam": sum(1 for r in results if r["decision"] == "DIGITAL_ARREST_SCAM"),
+            "suspicious": sum(1 for r in results if r["decision"] == "SUSPICIOUS"),
+            "safe": sum(1 for r in results if r["decision"] == "SAFE"),
+        }
+        return jsonify({"summary": summary_data})
+    except Exception as e:
+        print(f"[spam_summary] Error: {e}")
+        return jsonify({"summary": {"total": 0, "scam": 0, "suspicious": 0, "safe": 0}})
 
 
 # ========================================
