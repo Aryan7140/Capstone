@@ -14,55 +14,91 @@ def create_report():
     subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
     doc.add_paragraph('\n')
 
-    # --- Section 1: Executive Summary ---
-    doc.add_heading('1. Executive Summary', level=1)
+    # --- Section 1: Problem Statement ---
+    doc.add_heading('1. Problem Statement', level=1)
     doc.add_paragraph(
-        'FraudShield is a comprehensive security infrastructure designed to combat the rising threat of "Digital Arrest" scams '
-        'and financial fraud in India. It integrates Machine Learning, Natural Language Processing (NLP), and '
-        'Big Data analytics to provide real-time threat assessments for incoming messages and financial transactions.'
+        'In recent years, India has seen a massive surge in "Digital Arrest" and cyber-impersonation scams. '
+        'Fraudsters impersonate high-ranking officials from agencies like the CBI, Narcotics Department, '
+        'and State Police to intimidate citizens into transferring large sums of money. '
+        'The core problem lies in the victim\'s inability to verify the authenticity of a threat in real-time, '
+        'leading to multi-crore financial losses and psychological trauma.'
     )
 
-    # --- Section 2: System Architecture ---
-    doc.add_heading('2. System Architecture', level=1)
-    doc.add_paragraph('The system follows a modern decoupled architecture:')
-    doc.add_paragraph('• Frontend: React.js PWA (Hosted on Vercel/GitHub Pages)', style='List Bullet')
-    doc.add_paragraph('• Backend: Flask Python API (Hosted on Render)', style='List Bullet')
-    doc.add_paragraph('• Database: Firebase Real-time Database (for fraud tracking)', style='List Bullet')
-    doc.add_paragraph('• Data Engine: Optimized Parquet Storage for 100k+ records', style='List Bullet')
-
-    # --- Section 3: Core Detection Modules ---
-    doc.add_heading('3. Core Detection Modules', level=1)
-
-    doc.add_heading('3.1 Spam & Scam Engine (spam_detection.py)', level=2)
+    # --- Section 2: Proposed Solution ---
+    doc.add_heading('2. The FraudShield Solution', level=1)
     doc.add_paragraph(
-        'Uses a hybrid approach combining an XGBoost Machine Learning model with an extensive '
-        'synergy-based keyword matching engine. It detects:'
+        'FraudShield is an integrated AI-driven ecosystem designed to dismantle the digital arrest scam lifecycle. '
+        'It provides a three-layered defense strategy:'
     )
-    doc.add_paragraph('• Digital Arrest Patterns (CBI, Crime Branch, Police impersonation)', style='List Bullet')
-    doc.add_paragraph('• Violence & Physical Threats (Direct threats in English & Hindi)', style='List Bullet')
-    doc.add_paragraph('• Extortion & Blackmail (Urgent money demands, "warna dekh" logic)', style='List Bullet')
+    doc.add_paragraph('• Real-time NLP Analysis: Detects intimidation patterns and impersonation keywords in both English and romanized Hindi (Hinglish).', style='List Bullet')
+    doc.add_paragraph('• Transactional Risk Profiling: Instantly cross-references mentioned bank accounts against a historical database of 20,000+ fraud-linked transaction records.', style='List Bullet')
+    doc.add_paragraph('• Centralized Threat Database: Every detected scam is logged to a global Firebase database, preventing scammers from using the same tactics or account numbers across different victims.', style='List Bullet')
 
-    doc.add_heading('3.2 Financial Investigation (account_lookup.py)', level=2)
+    # --- Section 3: Technical Implementation ---
+    doc.add_heading('3. Technical Implementation', level=1)
+    
+    doc.add_heading('3.1 Full-Stack Architecture', level=2)
+    doc.add_paragraph('• Frontend: A responsive React.js Dashboard providing real-time visual alerts and investigation tools.', style='List Bullet')
+    doc.add_paragraph('• Backend: A high-performance Flask API utilizing Python’s data science stack (Pandas, Scikit-Learn, XGBoost).', style='List Bullet')
+    doc.add_paragraph('• Database Layer: Firebase Real-time Database for immediate persistence and global threat syncing.', style='List Bullet')
+
+    doc.add_heading('3.2 Data Optimization Engine', level=2)
     doc.add_paragraph(
-        'Cross-references extracted account numbers against a massive 100k-row financial dataset '
-        'to build a "Risk Profile" for the receiver.'
+        'To overcome cloud hosting limitations, the system uses "Parquet" binary storage and background loading threads. '
+        'This allows the application to handle large datasets while starting up in under 30 seconds, ensuring high availability.'
     )
 
-    # --- Section 4: Performance Optimizations ---
-    doc.add_heading('4. Performance Optimizations', level=1)
-    doc.add_paragraph(
-        'To ensure the system works on cloud free-tiers (Render/Vercel) without hitting RAM limits or timeouts:'
-    )
-    doc.add_paragraph('• Parquet Migration: Converted CSVs to binary Parquet, reducing load time from 45s to <1s.', style='List Bullet')
-    doc.add_paragraph('• Background Threading: Data and ML models load in a background thread, allowing the API to respond instantly on startup.', style='List Bullet')
-    doc.add_paragraph('• Type Downcasting: Optimized numeric types in memory to reduce RAM usage by 60%.', style='List Bullet')
+    # --- Section 4: Attainment of Objectives ---
+    doc.add_heading('4. Attainment of Defined Objectives', level=1)
+    
+    table = doc.add_table(rows=1, cols=2)
+    table.style = 'Table Grid'
+    hdr_cells = table.rows[0].cells
+    hdr_cells[0].text = 'Project Objective'
+    hdr_cells[1].text = 'Status / Attainment'
+    
+    objs = [
+        ('Real-time Scam Detection', 'Achieved. The hybrid ML engine flags Digital Arrest patterns with 90%+ confidence.'),
+        ('Multilingual Support', 'Achieved. The system supports English and Hinglish (e.g., "ek lakh", "bol raha hoon").'),
+        ('Financial Forensics', 'Achieved. Integrated lookup for 20k+ records with risk-score generation.'),
+        ('Scalable Deployment', 'Achieved. Fully operational on Render/Vercel with optimized memory mapping.')
+    ]
+    
+    for obj, status in objs:
+        row_cells = table.add_row().cells
+        row_cells[0].text = obj
+        row_cells[1].text = status
 
-    # --- Section 5: Multilingual Intelligence ---
-    doc.add_heading('5. Multilingual Intelligence', level=1)
+    # --- Section 5: Dashboard and Alerts Usage ---
+    doc.add_heading('5. Dashboard and Alert System Usage', level=1)
     doc.add_paragraph(
-        'The system is specifically tuned for the Indian context, supporting Romanized Hindi (Hinglish) '
-        'number words. Phrases like "ek lakh", "do lakh", or "paanch crore" are automatically '
-        'recognized and factored into the final threat score.'
+        'The FraudShield Dashboard serves as the central "Command Center" for the user, '
+        'providing a real-time window into the security health of the ecosystem.'
+    )
+    
+    doc.add_heading('5.1 The Unified Dashboard', level=2)
+    doc.add_paragraph(
+        'The dashboard provides high-level metrics through dynamic visualizations. '
+        'Users can instantly see the total count of identified fraud cases, suspicious alerts, '
+        'and legitimate transactions. This bird’s-eye view is critical for security analysts '
+        'to identify spikes in fraudulent activity.'
+    )
+    
+    doc.add_heading('5.2 Real-Time Alerts Feed', level=2)
+    doc.add_paragraph(
+        'The Alerts system provides a live, granular feed of every flagged attempt. '
+        'Each alert includes the transaction ID, the risk score, and the specific reason for '
+        'the flag (e.g., "Impersonation detected" or "Fraud-linked account"). '
+        'This allows the user to take immediate action, such as freezing an account or '
+        'notifying authorities.'
+    )
+    
+    doc.add_heading('5.3 Interactive Investigation', level=2)
+    doc.add_paragraph(
+        'Beyond passive monitoring, the user can use the "Investigate" module to manually '
+        'verify any suspicious communication. By entering a message, the dashboard provides '
+        'an instant "Threat Level" assessment, protecting the user from making risky decisions '
+        'under pressure.'
     )
 
     # Save the document

@@ -574,6 +574,17 @@ export default function App() {
   // Full investigation
   const runInvestigation = async () => {
     if (!messageInput.trim()) return;
+
+    // Validation
+    if (phoneNumber && !/^[6-9]\d{9}$/.test(phoneNumber.replace(/\s+/g, ""))) {
+      setInvestigateError("Please enter a valid 10-digit Indian phone number (e.g. 9876543210)");
+      return;
+    }
+    if (emailInput && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailInput)) {
+      setInvestigateError("Please enter a valid email address (e.g. user@example.com)");
+      return;
+    }
+
     setIsInvestigating(true);
     setInvestigateError("");
     setInvestigateResult(null);
